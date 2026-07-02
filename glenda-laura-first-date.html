@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glenda ♥ Laura — The First Date</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0614;
+    --frame:#181026;
+    --frame-edge:#2a1c42;
+    --gold:#f5c445;
+    --pink:#ff6fa5;
+    --text:#efe6f7;
+    --dim:#9d8fb5;
+    --px-font:'Press Start 2P', ui-monospace, 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--px-font);
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+  }
+  .theater{width:min(880px,100%)}
+  .marquee{
+    background:var(--frame);
+    border:3px solid var(--frame-edge);
+    border-bottom:none;
+    border-radius:14px 14px 0 0;
+    padding:14px 12px 10px;
+    text-align:center;
+  }
+  .bulbs{display:flex;justify-content:center;gap:10px;margin-bottom:10px}
+  .bulbs span{
+    width:6px;height:6px;background:var(--gold);border-radius:1px;
+    animation:blink 1.2s steps(2,end) infinite;
+  }
+  .bulbs span:nth-child(even){animation-delay:.6s;background:var(--pink)}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.15}}
+  .marquee h1{
+    font-size:clamp(11px,2.6vw,18px);letter-spacing:1px;
+    color:var(--gold);text-shadow:0 2px 0 #6b4a00;
+  }
+  .marquee p{margin-top:8px;font-size:clamp(7px,1.4vw,9px);color:var(--dim)}
+  .screen-wrap{
+    position:relative;
+    border:3px solid var(--frame-edge);
+    background:#000;line-height:0;
+  }
+  canvas{
+    width:100%;aspect-ratio:16/9;display:block;
+    image-rendering:pixelated;image-rendering:crisp-edges;
+  }
+  .overlay-title{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;text-align:center;pointer-events:none;
+    opacity:0;transition:opacity .6s ease;padding:0 10px;
+  }
+  .overlay-title.show{opacity:1}
+  .overlay-title .big{
+    font-size:clamp(14px,3.4vw,26px);color:#fff;
+    text-shadow:0 3px 0 #3b1230, 0 0 18px rgba(255,111,165,.55);
+  }
+  .overlay-title .small{font-size:clamp(8px,1.6vw,11px);color:var(--pink)}
+  .play-overlay{
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(6,3,12,.55);
+    cursor:pointer;border:none;width:100%;
+    transition:opacity .3s ease;
+  }
+  .play-overlay.hidden{opacity:0;pointer-events:none}
+  .play-overlay .btn-big{
+    font-family:var(--px-font);
+    font-size:clamp(10px,2vw,14px);
+    color:#140a20;background:var(--gold);
+    border:3px solid #fff2c9;box-shadow:0 4px 0 #6b4a00;
+    padding:14px 22px;border-radius:4px;
+  }
+  .caption-bar{
+    background:var(--frame);
+    border:3px solid var(--frame-edge);
+    border-top:none;border-bottom:none;
+    min-height:52px;
+    display:flex;align-items:center;justify-content:center;
+    padding:12px 16px;text-align:center;
+  }
+  .caption-bar span{
+    font-size:clamp(8px,1.7vw,11px);line-height:1.8;color:var(--text);
+  }
+  .controls{
+    background:var(--frame);
+    border:3px solid var(--frame-edge);
+    border-top:2px dashed var(--frame-edge);
+    border-radius:0 0 14px 14px;
+    padding:12px 14px 16px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  }
+  .controls button{
+    font-family:var(--px-font);font-size:9px;color:var(--text);
+    background:#241738;border:2px solid var(--frame-edge);
+    padding:8px 10px;border-radius:4px;cursor:pointer;
+  }
+  .controls button:hover{border-color:var(--gold);color:var(--gold)}
+  .controls button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .progress{
+    flex:1;min-width:120px;height:10px;
+    background:#241738;border:2px solid var(--frame-edge);border-radius:3px;
+    overflow:hidden;
+  }
+  .progress i{
+    display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,var(--pink),var(--gold));
+  }
+  .dots{display:flex;gap:5px;flex-wrap:wrap}
+  .dots button{width:22px;height:22px;padding:0;font-size:8px;line-height:1}
+  .dots button.active{background:var(--pink);color:#2a0817;border-color:#ff9cc0}
+</style>
+</head>
+<body>
+<div class="theater">
+  <header class="marquee">
+    <div class="bulbs" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <h1>GLENDA ♥ LAURA</h1>
+    <p>NOW SHOWING · THE FIRST DATE · A PIXEL LOVE STORY</p>
+  </header>
+
+  <div class="screen-wrap">
+    <canvas id="film" width="192" height="108" aria-label="Pixel-art animated movie"></canvas>
+    <div class="overlay-title" id="titleCard">
+      <div class="big" id="titleBig"></div>
+      <div class="small" id="titleSmall"></div>
+    </div>
+    <button class="play-overlay" id="playOverlay" aria-label="Play movie">
+      <span class="btn-big" id="playOverlayLabel">▶ PRESS PLAY</span>
+    </button>
+  </div>
+
+  <div class="caption-bar"><span id="caption">&nbsp;</span></div>
+
+  <div class="controls">
+    <button id="btnPlay" aria-label="Play or pause">▶</button>
+    <button id="btnRestart" aria-label="Restart">⟲</button>
+    <div class="progress" aria-hidden="true"><i id="progFill"></i></div>
+    <div class="dots" id="dots" role="group" aria-label="Jump to scene"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cvs = document.getElementById('film');
+  const ctx = cvs.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const W = 192, H = 108;
+
+  /* ---------- palette ---------- */
+  const C = {
+    skin:'#e8b48c',
+    eyeBrown:'#5a3115', eyeBlue:'#3a7bd5',
+    hairG:'#141210',            /* Glenda: black curls */
+    hairL:'#b07f4e',            /* Laura: light brown, long & straight */
+    teal:'#2ea6a0', jeans:'#35486e', shoe:'#20242c',
+    coral:'#ff7a6e', sand:'#c9b070',
+    night1:'#120a24', night2:'#241242', star:'#fff6d8',
+    heart:'#ff5a7e', heartHi:'#ffaec0',
+    match:'#3fd06a',
+    brGreen:'#2e9e4f', brYellow:'#f5cf3a', brBlue:'#2a4fa0'
+  };
+
+  function rnd(i){ const x = Math.sin(i*127.1+311.7)*43758.5453; return x - Math.floor(x); }
+
+  function drawSprite(rows, map, x, y, s, flip){
+    s = s || 1;
+    for(let r=0;r<rows.length;r++){
+      const row = rows[r];
+      for(let c=0;c<row.length;c++){
+        const k = row[c];
+        if(k===' '||k==='.') continue;
+        const col = map[k];
+        if(!col) continue;
+        const cx = flip ? (row.length-1-c) : c;
+        ctx.fillStyle = col;
+        ctx.fillRect(Math.round(x+cx*s), Math.round(y+r*s), s, s);
+      }
+    }
+  }
+
+  /* Glenda — 5'1", shoulder-length curly black hair, brown eyes (12 rows) */
+  const GLENDA = [
+    "..h.hhh.h..",
+    ".hhhhhhhhh.",
+    ".hhssssshh.",
+    ".hhsBsBshh.",
+    ".hhssssshh.",
+    ".hh.sss.hh.",
+    "..httttth..",
+    "..sttttts..",
+    "...ttttt...",
+    "...jjjjj...",
+    "...jj.jj...",
+    "...kk.kk..."
+  ];
+  const GLENDA_MAP = {h:C.hairG, s:C.skin, B:C.eyeBrown, t:C.teal, j:C.jeans, k:C.shoe};
+
+  /* Laura — 5'7", long straight light-brown hair, blue eyes (14 rows) */
+  const LAURA = [
+    "...HHHHH...",
+    "..HHHHHHH..",
+    "..HsssssH..",
+    "..HsUsUsH..",
+    "..HsssssH..",
+    "..HHsssHH..",
+    "..HcccccH..",
+    "..HcccccH..",
+    ".sHcccccHs.",
+    "...ccccc...",
+    "...ppppp...",
+    "...ppppp...",
+    "...pp.pp...",
+    "...kk.kk..."
+  ];
+  const LAURA_MAP = {H:C.hairL, s:C.skin, U:C.eyeBlue, c:C.coral, p:C.sand, k:C.shoe};
+
+  const HEART = [
+    ".h.h.",
+    "hHHHh",
+    "hHHHh",
+    ".hHh.",
+    "..h.."
+  ];
+  function drawHeart(x,y,s,glow){
+    drawSprite(HEART, {h:C.heart, H: glow?C.heartHi:C.heart}, x, y, s);
+  }
+
+  function pixelCircle(cx,cy,r,col){
+    ctx.fillStyle = col;
+    for(let dy=-r; dy<=r; dy++){
+      const w = Math.floor(Math.sqrt(r*r - dy*dy));
+      ctx.fillRect(Math.round(cx-w), Math.round(cy+dy), w*2+1, 1);
+    }
+  }
+
+  function stars(count, gt, seed){
+    for(let i=0;i<count;i++){
+      const x = Math.floor(rnd(i+seed)*W);
+      const y = Math.floor(rnd(i+seed+99)*60);
+      ctx.globalAlpha = 0.4 + 0.6*Math.abs(Math.sin(gt/700 + i));
+      ctx.fillStyle = C.star;
+      ctx.fillRect(x,y,1,1);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function skyGrad(top, bottom, splitY){
+    ctx.fillStyle = top;  ctx.fillRect(0,0,W,splitY);
+    ctx.fillStyle = bottom; ctx.fillRect(0,splitY,W,H-splitY);
+  }
+
+  /* spark burst: little + shapes */
+  function spark(x, y, phase, col){
+    if(phase<0 || phase>1) return;
+    const r = 1 + Math.round(phase*5);
+    ctx.globalAlpha = 1-phase;
+    ctx.fillStyle = col;
+    ctx.fillRect(x-r, y, r*2+1, 1);
+    ctx.fillRect(x, y-r, 1, r*2+1);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- phone/profile card helpers ---------- */
+  function drawPhone(x,y,w,h,screenCol){
+    ctx.fillStyle = '#1a1622';
+    ctx.fillRect(x-3,y-4,w+6,h+8);
+    ctx.fillStyle = screenCol || '#efe9f4';
+    ctx.fillRect(x,y,w,h);
+    ctx.fillStyle = '#2b2536';
+    ctx.fillRect(x + Math.floor(w/2)-4, y+h+1, 8, 2); /* home bar */
+  }
+
+  function drawProfileCard(cx, cy, headRows, map, accent, slide, tilt){
+    /* card 44x58 centered at cx,cy; slide shifts x, tilt lifts one side */
+    const w=44, h=58;
+    const x = Math.round(cx - w/2 + slide);
+    const y = Math.round(cy - h/2 - Math.abs(slide)*0.08);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#d9d2e4';
+    ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y+h-1, w, 1);
+    ctx.fillRect(x, y, 1, h); ctx.fillRect(x+w-1, y, 1, h);
+    /* photo area */
+    ctx.fillStyle = accent;
+    ctx.fillRect(x+2, y+2, w-4, 34);
+    /* portrait: head rows scaled x3, centered */
+    drawSprite(headRows, map, x + Math.round(w/2) - Math.round(headRows[0].length*3/2), y+4, 3, false);
+    /* name + bio bars */
+    ctx.fillStyle = '#3a3444';
+    ctx.fillRect(x+4, y+40, 22, 4);
+    ctx.fillStyle = '#9a92a8';
+    ctx.fillRect(x+4, y+47, w-8, 2);
+    ctx.fillRect(x+4, y+51, w-14, 2);
+  }
+
+  function greenHeartStamp(cx, cy, p){
+    /* pops in with p 0..1 */
+    const s = p<0.5 ? 2 : 3;
+    ctx.globalAlpha = Math.min(p*3,1);
+    drawSprite(HEART, {h:C.match, H:'#8af0a8'}, cx - Math.floor(s*2.5), cy - Math.floor(s*2.5), s);
+    ctx.globalAlpha = 1;
+  }
+
+  const GLENDA_HEAD = GLENDA.slice(0,6);
+  const LAURA_HEAD  = LAURA.slice(0,6);
+
+  /* ---------- scenes ---------- */
+
+  function sceneTitle(t, gt){
+    skyGrad(C.night1, C.night2, 70);
+    stars(46, gt, 3);
+    pixelCircle(158, 20, 9, '#f4ead2');
+    pixelCircle(154, 18, 8, C.night1);
+    ctx.fillStyle = '#1b0f33';
+    ctx.fillRect(0,86,W,22);
+    pixelCircle(40,92,22,'#1b0f33');
+    pixelCircle(130,96,30,'#1b0f33');
+    /* Glenda and Laura on the hill under the stars */
+    const bob = Math.round(Math.sin(gt/500));
+    drawSprite(GLENDA, GLENDA_MAP, 72, 64+bob, 2, false);
+    drawSprite(LAURA,  LAURA_MAP, 100, 60-bob, 2, true);
+    if(t>0.35) drawHeart(94, 48 - Math.round((t-0.35)*14), 1, Math.sin(gt/200)>0);
+  }
+
+  /* Scene: Glenda swipes right on Laura */
+  function sceneSwipeG(t, gt){
+    skyGrad('#1c1030', '#120a24', H);
+    stars(20, gt, 21);
+    /* Glenda peeking at bottom-left corner, holding phone vibe */
+    drawSprite(GLENDA_HEAD, GLENDA_MAP, 6, 74, 3, false);
+    /* big phone center */
+    drawPhone(70, 12, 56, 82, '#efe9f4');
+    /* Laura's profile card */
+    let slide = 0;
+    if(t>0.62) slide = (t-0.62)/0.38 * 110;         /* fly right */
+    const wig = t<0.62 ? Math.sin(gt/300)*1.5 : 0;   /* considering... */
+    drawProfileCard(98, 52, LAURA_HEAD, LAURA_MAP, '#ffe3ee', slide + wig, 0);
+    /* green heart stamp just before the fling */
+    if(t>0.5 && t<0.78) greenHeartStamp(98, 52, (t-0.5)/0.1);
+    /* thumb tap dot */
+    if(t>0.48 && t<0.56){
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      pixelCircle(112, 70, 3, 'rgba(255,255,255,0.5)');
+    }
+    /* little hearts drifting from Glenda */
+    if(t>0.7){
+      const p=(t-0.7)/0.3;
+      drawHeart(22, 70 - Math.round(p*16), 1, true);
+    }
+  }
+
+  /* Scene: Laura swipes right on Glenda */
+  function sceneSwipeL(t, gt){
+    skyGrad('#101a2e', '#0a1120', H);
+    stars(20, gt, 33);
+    drawSprite(LAURA_HEAD, LAURA_MAP, W-40, 72, 3, true);
+    drawPhone(66, 12, 56, 82, '#efe9f4');
+    let slide = 0;
+    if(t>0.62) slide = (t-0.62)/0.38 * 110;
+    const wig = t<0.62 ? Math.sin(gt/300)*1.5 : 0;
+    drawProfileCard(94, 52, GLENDA_HEAD, GLENDA_MAP, '#e0f4f0', slide + wig, 0);
+    if(t>0.5 && t<0.78) greenHeartStamp(94, 52, (t-0.5)/0.1);
+    if(t>0.48 && t<0.56){
+      pixelCircle(108, 70, 3, 'rgba(255,255,255,0.5)');
+    }
+    if(t>0.7){
+      const p=(t-0.7)/0.3;
+      drawHeart(W-28, 68 - Math.round(p*16), 1, true);
+    }
+  }
+
+  /* Scene: It's a match! */
+  function sceneMatch(t, gt){
+    skyGrad('#2a0f2e', '#160a20', H);
+    /* confetti */
+    for(let i=0;i<26;i++){
+      const p = ((gt/1200) + rnd(i)) % 1;
+      const x = Math.floor(rnd(i+7)*W);
+      const y = Math.floor(p*H);
+      ctx.fillStyle = [C.match, C.heart, C.brYellow, '#7ab8ff'][i%4];
+      ctx.fillRect(x, y, 2, 2);
+    }
+    /* two portraits sliding together */
+    const gap = Math.max(0, 40 - t*80);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(Math.round(50-gap)-2, 30, 37, 40);
+    ctx.fillRect(Math.round(108+gap)-2, 30, 37, 40);
+    drawSprite(GLENDA_HEAD, GLENDA_MAP, Math.round(50-gap), 33, 3, false);
+    drawSprite(LAURA_HEAD, LAURA_MAP, Math.round(108+gap), 33, 3, true);
+    /* heart between */
+    const pulse = 2 + (Math.sin(gt/250)>0 ? 1:0);
+    drawHeart(96 - Math.floor(pulse*2.5), 44 - pulse, pulse, true);
+  }
+
+  /* Scene: texting for a few days */
+  function sceneTexting(t, gt){
+    /* sky shifts day -> night to show days passing */
+    const phase = (t*3) % 1; /* 3 day/night cycles */
+    const day = Math.sin(phase*Math.PI);
+    const rr = Math.round(18 + day*140);
+    const gg = Math.round(10 + day*160);
+    const bb = Math.round(36 + day*140);
+    ctx.fillStyle = 'rgb('+rr+','+gg+','+bb+')';
+    ctx.fillRect(0,0,W,H);
+    if(day<0.3) stars(24, gt, 44);
+    /* sun/moon arc */
+    const ax = 20 + phase*152;
+    const ay = 30 - Math.sin(phase*Math.PI)*18;
+    pixelCircle(Math.round(ax), Math.round(ay), 5, day>0.3 ? '#ffe9a0' : '#e8e2d0');
+    /* chat window */
+    ctx.fillStyle = '#efe9f4';
+    ctx.fillRect(36, 20, 120, 76);
+    ctx.fillStyle = '#d9d2e4';
+    ctx.fillRect(36, 20, 120, 8);
+    /* a couple of texts over a few days; right = Glenda (teal), left = Laura (coral) */
+    const bubbles = [
+      {side:'r', y:36, w:52}, {side:'l', y:48, w:44},
+      {side:'r', y:62, w:60}, {side:'l', y:76, w:56}
+    ];
+    const shown = Math.floor(t*5);
+    bubbles.forEach((b,i)=>{
+      if(i>=shown) return;
+      const x = b.side==='r' ? 152-b.w : 40;
+      ctx.fillStyle = b.side==='r' ? C.teal : C.coral;
+      ctx.fillRect(x, b.y, b.w, 7);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(x+3, b.y+3, b.w-14, 1);
+    });
+    /* typing dots for the next bubble */
+    if(shown < bubbles.length){
+      const nb = bubbles[shown];
+      const x = nb.side==='r' ? 132 : 40;
+      for(let d=0;d<3;d++){
+        ctx.globalAlpha = (Math.floor(gt/250)+d)%3===0 ? 1 : 0.3;
+        ctx.fillStyle = '#8a8296';
+        ctx.fillRect(x + d*4, nb.y+3, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+    /* tiny hearts at corners */
+    if(Math.sin(gt/600)>0.5){ drawHeart(20,80,1,true); drawHeart(166,76,1,true); }
+  }
+
+  /* shared base: the Brazilian bar interior */
+  function barBase(gt){
+    /* warm wood walls + floor */
+    ctx.fillStyle = '#4a2f22'; ctx.fillRect(0,0,W,80);
+    ctx.fillStyle = '#38221a'; ctx.fillRect(0,80,W,28);
+    ctx.fillStyle = '#5a3a2a';
+    for(let y=6;y<80;y+=14) ctx.fillRect(0,y,W,1);
+    /* string lights */
+    for(let i=0;i<12;i++){
+      const x = 8 + i*16;
+      const y = 8 + Math.round(Math.sin(i*1.2)*2);
+      ctx.fillStyle = '#2a1a12';
+      ctx.fillRect(x, y-2, 1, 2);
+      const cols = [C.brYellow, C.brGreen, '#ff9c5a', '#7ab8ff'];
+      ctx.globalAlpha = 0.6 + 0.4*Math.abs(Math.sin(gt/400 + i));
+      ctx.fillStyle = cols[i%4];
+      ctx.fillRect(x-1, y, 3, 3);
+      ctx.globalAlpha = 1;
+    }
+    /* Brazilian flag on the wall */
+    ctx.fillStyle = C.brGreen; ctx.fillRect(18, 26, 20, 13);
+    ctx.fillStyle = C.brYellow;
+    ctx.fillRect(24, 29, 8, 7); ctx.fillRect(22, 31, 12, 3);
+    ctx.fillStyle = C.brBlue; ctx.fillRect(27, 31, 3, 3);
+    /* bar counter in back w/ bottles */
+    ctx.fillStyle = '#2c1b12'; ctx.fillRect(120, 34, 66, 26);
+    ctx.fillStyle = '#1e120c'; ctx.fillRect(120, 30, 66, 4);
+    const bcols = ['#3fae5a','#e0b13a','#b04a3a','#4a7ab0','#8a5ab0'];
+    for(let i=0;i<8;i++){
+      ctx.fillStyle = bcols[i%5];
+      ctx.fillRect(126+i*7, 22, 3, 8);
+    }
+    /* music notes drifting */
+    const np = (gt/1600)%1;
+    ctx.globalAlpha = 1-np;
+    ctx.fillStyle = '#ffe9a0';
+    ctx.fillRect(58, Math.round(30-np*14), 2, 2);
+    ctx.fillRect(60, Math.round(28-np*14), 1, 4);
+    ctx.globalAlpha = 1;
+    /* small round table */
+    ctx.fillStyle = '#6b452e'; ctx.fillRect(80, 62, 32, 4);
+    ctx.fillStyle = '#503522'; ctx.fillRect(94, 66, 4, 16);
+    /* beers */
+    ctx.fillStyle = '#e8a33a'; ctx.fillRect(84, 56, 5, 7); ctx.fillRect(103, 56, 5, 7);
+    ctx.fillStyle = '#fff6e0'; ctx.fillRect(84, 54, 5, 2); ctx.fillRect(103, 54, 5, 2);
+    /* little snack bowl in the middle of the table */
+    ctx.fillStyle = '#8a4a2a'; ctx.fillRect(92, 59, 9, 4);
+    ctx.fillStyle = '#f0d08a'; ctx.fillRect(93, 58, 2, 1); ctx.fillRect(96, 57, 2, 2); ctx.fillRect(99, 58, 1, 1);
+    /* stools */
+    ctx.fillStyle = '#503522';
+    ctx.fillRect(58, 72, 14, 3); ctx.fillRect(62, 75, 2, 9); ctx.fillRect(66, 75, 2, 9);
+    ctx.fillRect(120, 72, 14, 3); ctx.fillRect(124, 75, 2, 9); ctx.fillRect(128, 75, 2, 9);
+  }
+
+  /* seated versions: head through hips */
+  const GLENDA_SEATED = GLENDA.slice(0,10);
+  const LAURA_SEATED  = LAURA.slice(0,10);
+
+  /* Scene: the date at the bar */
+  function sceneBar(t, gt){
+    barBase(gt);
+    const bobG = Math.round(Math.sin(gt/450));
+    const bobL = Math.round(Math.sin(gt/450 + 1.6));
+    /* Glenda left (shorter), Laura right (taller) */
+    drawSprite(GLENDA_SEATED, GLENDA_MAP, 52, 52+bobG, 2, false);
+    drawSprite(LAURA_SEATED,  LAURA_MAP, 118, 48+bobL, 2, true);
+    /* chatter marks alternate */
+    if(Math.sin(gt/800)>0){
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(76, 48+bobG, 2, 2); ctx.fillRect(80, 45+bobG, 2, 2);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(112, 44+bobL, 2, 2); ctx.fillRect(108, 41+bobL, 2, 2);
+    }
+    /* a little laugh: a heart floats up between them near the end */
+    if(t>0.75){
+      drawHeart(93, 42, 1, Math.sin(gt/220)>0);
+    }
+  }
+
+  /* Scene: Laura touches Glenda's hand — sparks on Glenda's side */
+  function sceneSpark(t, gt){
+    barBase(gt);
+    const bobL = Math.round(Math.sin(gt/600));
+    drawSprite(GLENDA_SEATED, GLENDA_MAP, 52, 52, 2, false);
+    drawSprite(LAURA_SEATED,  LAURA_MAP, 118, 48+bobL, 2, true);
+    /* both reach for the snack bowl at the same time — hands touch by accident */
+    /* reach out 0.15-0.40 · brief touch 0.40-0.52 · quick pull-back 0.52-0.65 */
+    let reach;
+    if(t < 0.4)       reach = Math.min(Math.max((t-0.15)/0.25, 0), 1);
+    else if(t < 0.52) reach = 1;
+    else              reach = Math.max(1 - (t-0.52)/0.10, 0);   /* fast retract */
+    const touching = t>=0.4 && t<0.52;
+    ctx.fillStyle = C.skin;
+    /* Glenda's arm from the left toward the bowl */
+    const gArm = Math.round(reach*20);
+    ctx.fillRect(72, 60, gArm+4, 3);
+    /* Laura's arm from the right toward the bowl */
+    const lArm = Math.round(reach*20);
+    ctx.fillRect(118-lArm, 60, lArm+4, 3);
+    if(touching){
+      /* hands overlap over the bowl for just a moment */
+      ctx.fillStyle = C.skin;
+      ctx.fillRect(92, 58, 9, 3);
+      /* startled "!" over both — oops */
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(62, 42, 2, 4); ctx.fillRect(62, 48, 2, 2);
+      ctx.fillRect(128, 38+bobL, 2, 4); ctx.fillRect(128, 44+bobL, 2, 2);
+    }
+    /* sparks fly ONLY on Glenda's side of the table */
+    if(t>=0.4 && t<0.8){
+      const st = (t-0.4)/0.4;
+      spark(88, 55, (st*3)%1, '#ffe9a0');
+      spark(80, 50, (st*3+0.33)%1, '#fff');
+      spark(84, 46, (st*3+0.66)%1, C.brYellow);
+      spark(76, 56, (st*2.2+0.5)%1, '#ffd2e2');
+      spark(70, 51, (st*2.6+0.2)%1, '#ffe9a0');
+    }
+    /* aftermath: Glenda is the one who felt it */
+    if(t>0.45){
+      /* stunned blush */
+      ctx.fillStyle = '#ff9c9c';
+      ctx.fillRect(58, 60, 2, 1); ctx.fillRect(66, 60, 2, 1);
+    }
+    if(t>0.6){
+      /* heart floats up over Glenda only */
+      drawHeart(60, 42 - Math.round(((t-0.6)*22)%12), 1, true);
+    }
+  }
+
+  /* Scene: leaving the bar, crossing the street */
+  function sceneCrossing(t, gt){
+    skyGrad(C.night1, '#1a0f30', 56);
+    stars(30, gt, 55);
+    /* bar facade on the left */
+    ctx.fillStyle = '#3a2418'; ctx.fillRect(0, 20, 62, 48);
+    ctx.fillStyle = C.brGreen; ctx.fillRect(4, 24, 54, 10);
+    ctx.fillStyle = C.brYellow;
+    for(let i=0;i<5;i++) ctx.fillRect(9+i*10, 27, 6, 4); /* sign letters */
+    /* glowing door + windows */
+    ctx.fillStyle = '#ffca6a'; ctx.fillRect(24, 44, 14, 24);
+    ctx.fillStyle = '#e8a84a'; ctx.fillRect(8, 42, 10, 12); ctx.fillRect(46, 42, 10, 12);
+    /* street */
+    ctx.fillStyle = '#2b2833'; ctx.fillRect(0, 68, W, 40);
+    /* crosswalk stripes going right */
+    ctx.fillStyle = '#d8d4de';
+    for(let i=0;i<7;i++) ctx.fillRect(76 + i*16, 74, 8, 30);
+    /* streetlight on the far side */
+    ctx.fillStyle = '#3a3644'; ctx.fillRect(176, 30, 3, 40);
+    ctx.fillStyle = '#ffe9a0'; ctx.fillRect(170, 28, 12, 4);
+    ctx.fillStyle = 'rgba(255,233,160,0.10)';
+    ctx.beginPath();
+    ctx.moveTo(176, 32); ctx.lineTo(160, 70); ctx.lineTo(192, 70);
+    ctx.closePath(); ctx.fill();
+    /* the two walking across, Glenda in front a step */
+    const wx = 40 + t*120;
+    const step = Math.round(Math.sin(gt/170)*1);
+    drawSprite(GLENDA, GLENDA_MAP, wx, 62+step, 2, false);
+    drawSprite(LAURA,  LAURA_MAP, wx+18, 58-step, 2, false);
+    /* held hands */
+    ctx.fillStyle = C.skin;
+    ctx.fillRect(Math.round(wx+17), 78, 3, 2);
+  }
+
+  /* Scene: the parking lot kiss */
+  function sceneKiss(t, gt){
+    skyGrad(C.night1, C.night2, 50);
+    stars(48, gt, 66);
+    /* distant skyline */
+    ctx.fillStyle = '#160c28';
+    ctx.fillRect(0, 40, 24, 12); ctx.fillRect(30, 36, 14, 16);
+    ctx.fillRect(150, 38, 18, 14); ctx.fillRect(174, 42, 18, 10);
+    /* big empty lot */
+    ctx.fillStyle = '#232030'; ctx.fillRect(0, 52, W, 56);
+    /* parking lines in perspective-ish rows */
+    ctx.fillStyle = '#3c384c';
+    for(let i=0;i<6;i++) ctx.fillRect(8 + i*32, 62, 2, 10);
+    for(let i=0;i<6;i++) ctx.fillRect(2 + i*36, 84, 2, 14);
+    /* two parked SUVs, far apart: black on the left, grey on the right */
+    function drawSUV(x, y, body, trim){
+      ctx.fillStyle = body;
+      ctx.fillRect(x, y+3, 28, 6);          /* lower body */
+      ctx.fillRect(x+4, y, 18, 4);          /* boxy cabin */
+      ctx.fillStyle = '#9ecbe8';            /* windows */
+      ctx.fillRect(x+6, y+1, 6, 3);
+      ctx.fillRect(x+14, y+1, 6, 3);
+      ctx.fillStyle = trim;
+      ctx.fillRect(x, y+8, 28, 1);
+      ctx.fillStyle = '#0c0c10';            /* wheels */
+      ctx.fillRect(x+4, y+9, 4, 3);
+      ctx.fillRect(x+20, y+9, 4, 3);
+      ctx.fillStyle = '#55555f';            /* hubcaps */
+      ctx.fillRect(x+5, y+10, 2, 1);
+      ctx.fillRect(x+21, y+10, 2, 1);
+    }
+    drawSUV(6, 68, '#16161c', '#000000');   /* black SUV, left */
+    drawSUV(158, 56, '#8a8f98', '#5c6068'); /* grey SUV, right */
+    /* one streetlight over them */
+    ctx.fillStyle = '#3a3644'; ctx.fillRect(140, 18, 3, 40);
+    ctx.fillStyle = '#ffe9a0'; ctx.fillRect(130, 16, 14, 4);
+    ctx.fillStyle = 'rgba(255,233,160,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(140, 20); ctx.lineTo(110, 88); ctx.lineTo(172, 88);
+    ctx.closePath(); ctx.fill();
+
+    /* timeline: 0-.35 face each other · .35-.6 Glenda steps in & rises on her tippy toes · .5-.88 kiss · then hearts */
+    const FY = 84;                                  /* shared feet line */
+    const bob = Math.round(Math.sin(gt/500));
+    let tip = 0;
+    if(t>0.35) tip = Math.min((t-0.35)/0.25, 1);
+    const rise = Math.round(tip*5);                 /* tippy toes: up 5px — heels clearly off the ground */
+    const kissing = t>0.5 && t<0.88;
+    const gx = 76 + Math.round(tip*4);              /* she steps in close */
+    const lx = 102;
+
+    /* Laura: 14 rows x2 = 28px tall. Glenda: 12 rows x2 = 24px tall. */
+    drawSprite(LAURA, LAURA_MAP, lx, FY - 28 + (kissing?0:bob), 2, true);
+    const gBob = (tip>0 || kissing) ? 0 : bob;      /* steady while rising */
+    drawSprite(GLENDA, GLENDA_MAP, gx, FY - 24 - rise + gBob, 2, false);
+    /* on her tippy toes: only the tips of her shoes touch the ground */
+    if(rise > 0){
+      ctx.fillStyle = C.shoe;
+      ctx.fillRect(gx+8,  FY - rise, 2, rise);      /* left toe, en pointe */
+      ctx.fillRect(gx+14, FY - rise, 2, rise);      /* right toe, en pointe */
+    }
+    /* little motion lines while she rises */
+    if(tip>0 && tip<1){
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(gx-4, FY - 10 - rise, 3, 1);
+      ctx.fillRect(gx+24, FY - 14 - rise, 3, 1);
+      ctx.fillRect(gx-3, FY - 18 - rise, 2, 1);
+      ctx.globalAlpha = 1;
+    }
+    /* kiss heart between their faces */
+    if(kissing){
+      const hp = Math.sin((t-0.5)/0.38*Math.PI);
+      const hs = hp>0.5 ? 2 : 1;
+      drawHeart(98 - hs, 56 - hs*2, hs, true);
+    }
+    /* after-kiss floating hearts */
+    if(t>0.85){
+      const p = (t-0.85)/0.15;
+      drawHeart(88, 50 - Math.round(p*10), 1, true);
+      drawHeart(106, 54 - Math.round(p*14), 1, true);
+    }
+  }
+
+  /* Scene: good night / end card */
+  function sceneEnd(t, gt){
+    skyGrad(C.night1, C.night2, 64);
+    stars(56, gt, 77);
+    if(t>0.3 && t<0.5){
+      const p=(t-0.3)/0.2;
+      ctx.fillStyle = C.star;
+      ctx.fillRect(Math.round(20+p*120), Math.round(8+p*20), 3, 1);
+    }
+    ctx.fillStyle = '#1b0f33'; ctx.fillRect(0,84,W,24);
+    pixelCircle(96,96,40,'#1b0f33');
+    /* the two waving good night, walking apart slowly (but looking back) */
+    const drift = Math.round(t*10);
+    const bob = Math.round(Math.sin(gt/500));
+    drawSprite(GLENDA, GLENDA_MAP, 72-drift, 60+bob, 2, true);
+    drawSprite(LAURA,  LAURA_MAP, 104+drift, 56-bob, 2, false);
+    /* waves */
+    if(Math.sin(gt/300)>0){
+      ctx.fillStyle = C.skin;
+      ctx.fillRect(72-drift+22, 66+bob, 2, 2);
+      ctx.fillRect(104+drift-2, 62-bob, 2, 2);
+    }
+    const pulse = 2 + (Math.sin(gt/300)>0 ? 1 : 0);
+    drawHeart(96 - Math.floor(pulse*2.5), 24 - pulse, pulse, true);
+  }
+
+  const scenes = [
+    {dur:4500,  draw:sceneTitle,    caption:"Two phones. One very good algorithm.", title:["GLENDA ♥ LAURA","the first date"]},
+    {dur:7000,  draw:sceneSwipeG,   caption:"“Que menina linda…”"},
+    {dur:7000,  draw:sceneSwipeL,   caption:"“What a cutie.”"},
+    {dur:3500,  draw:sceneMatch,    caption:"✨", title:["IT'S A MATCH!","♥"]},
+    {dur:8000,  draw:sceneTexting,  caption:"After exchanging a couple of texts over a few days… a date was planned at a Brazilian bar."},
+    {dur:9000,  draw:sceneBar,      caption:"A small table. Beers. Talking and laughing."},
+    {dur:7500,  draw:sceneSpark,    caption:"Both reached for the middle of the table — their hands accidentally touched. Glenda felt a twinkle."},
+    {dur:7000,  draw:sceneCrossing, caption:"Approaching Laura's bedtime, they decided to leave — holding hands on the way out."},
+    {dur:10000, draw:sceneKiss,     caption:"In the big empty lot, Glenda got up on her tippy toes… one magical kiss."},
+    {dur:5500,  draw:sceneEnd,      caption:"\u00a0", title:["TO BE CONTINUED…","♥"]}
+  ];
+  const starts = [];
+  let acc = 0;
+  scenes.forEach(s=>{ starts.push(acc); acc += s.dur; });
+  const TOTAL = acc;
+
+  /* ---------- player ---------- */
+  let playing = false;
+  let elapsed = 0;
+  let last = null;
+
+  const playOverlay = document.getElementById('playOverlay');
+  const playOverlayLabel = document.getElementById('playOverlayLabel');
+  const btnPlay = document.getElementById('btnPlay');
+  const btnRestart = document.getElementById('btnRestart');
+  const captionEl = document.getElementById('caption');
+  const progFill = document.getElementById('progFill');
+  const titleCard = document.getElementById('titleCard');
+  const titleBig = document.getElementById('titleBig');
+  const titleSmall = document.getElementById('titleSmall');
+  const dotsWrap = document.getElementById('dots');
+
+  scenes.forEach((s,i)=>{
+    const b = document.createElement('button');
+    b.textContent = i+1;
+    b.setAttribute('aria-label','Scene '+(i+1));
+    b.addEventListener('click', ()=>{ elapsed = starts[i]; if(!playing) render(); });
+    dotsWrap.appendChild(b);
+  });
+  const dotBtns = Array.from(dotsWrap.children);
+
+  function setPlaying(p){
+    playing = p;
+    btnPlay.textContent = p ? '❚❚' : '▶';
+    playOverlay.classList.toggle('hidden', p);
+    if(!p && elapsed >= TOTAL){
+      playOverlayLabel.textContent = '⟲ PLAY AGAIN';
+    }
+  }
+
+  playOverlay.addEventListener('click', ()=>{
+    if(elapsed >= TOTAL) elapsed = 0;
+    setPlaying(true);
+  });
+  btnPlay.addEventListener('click', ()=>{
+    if(!playing && elapsed >= TOTAL) elapsed = 0;
+    setPlaying(!playing);
+  });
+  btnRestart.addEventListener('click', ()=>{ elapsed = 0; setPlaying(true); });
+
+  let lastCaption = null, lastTitleKey = null;
+
+  function sceneIndex(ms){
+    for(let i=scenes.length-1;i>=0;i--){
+      if(ms >= starts[i]) return i;
+    }
+    return 0;
+  }
+
+  function render(){
+    const idx = sceneIndex(Math.min(elapsed, TOTAL-1));
+    const s = scenes[idx];
+    const inScene = elapsed - starts[idx];
+    const t = Math.min(inScene / s.dur, 1);
+
+    ctx.clearRect(0,0,W,H);
+    s.draw(t, elapsed);
+
+    /* crossfade */
+    const fadeMs = 600;
+    let fade = 0;
+    if(inScene < fadeMs && idx>0) fade = 1 - inScene/fadeMs;
+    const remain = s.dur - inScene;
+    if(remain < fadeMs && idx < scenes.length-1) fade = Math.max(fade, 1 - remain/fadeMs);
+    if(fade > 0){
+      ctx.fillStyle = 'rgba(0,0,0,'+fade.toFixed(2)+')';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    if(s.caption !== lastCaption){ captionEl.textContent = s.caption; lastCaption = s.caption; }
+
+    const key = s.title ? idx : -1;
+    if(key !== lastTitleKey){
+      lastTitleKey = key;
+      if(s.title){
+        titleBig.textContent = s.title[0];
+        titleSmall.textContent = s.title[1];
+        titleCard.classList.add('show');
+      } else {
+        titleCard.classList.remove('show');
+      }
+    }
+
+    progFill.style.width = Math.min(elapsed/TOTAL*100,100).toFixed(1) + '%';
+    dotBtns.forEach((b,i)=> b.classList.toggle('active', i===idx));
+  }
+
+  function frame(ts){
+    if(last === null) last = ts;
+    const dt = ts - last;
+    last = ts;
+    if(playing){
+      elapsed += dt;
+      if(elapsed >= TOTAL){
+        elapsed = TOTAL;
+        setPlaying(false);
+      }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  render();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
